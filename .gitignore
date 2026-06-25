@@ -127,3 +127,6 @@ output/
 videos/
 expdata/
 plots/
+outputs/
+.venv/
+.venv_groot/
