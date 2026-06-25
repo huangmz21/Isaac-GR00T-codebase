@@ -326,6 +326,11 @@ class GR00TTransform(InvertibleModalityTransform):
             assert k not in transformed_data, f"Key {k} already exists in transformed_data."
             transformed_data[k] = v
 
+        # Optional action-effect memory fields for GR00T_N1_5_Memory.
+        for key in ("mem_actions", "mem_valid_mask", "mem_pre_feat", "mem_post_feat"):
+            if key in data:
+                transformed_data[key] = np.asarray(data[key])
+
         transformed_data["embodiment_id"] = self.get_embodiment_tag()
 
         if self.training:

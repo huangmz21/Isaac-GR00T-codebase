@@ -75,6 +75,7 @@ class SimulationConfig:
     n_envs: int = 1
     video: VideoConfig = field(default_factory=VideoConfig)
     multistep: MultiStepConfig = field(default_factory=MultiStepConfig)
+    reset_policy_memory: bool = False
 
 
 class SimulationInferenceClient(BaseInferenceClient, BasePolicy):
@@ -99,6 +100,11 @@ class SimulationInferenceClient(BaseInferenceClient, BasePolicy):
         """Get modality configuration from the inference server."""
         return self.call_endpoint("get_modality_config", requires_input=False)
 
+    def reset_policy_memory(self, indices: Optional[List[int]] = None) -> None:
+        """Reset optional online-memory state on policies that expose it."""
+        payload = {} if indices is None else {"indices": indices}
+        self.call_endpoint("reset_memory", payload)
+
     def setup_environment(self, config: SimulationConfig) -> gym.vector.VectorEnv:
         """Set up the simulation environment based on the provided configuration."""
         # Create environment functions for each parallel environment
@@ -121,6 +127,8 @@ class SimulationInferenceClient(BaseInferenceClient, BasePolicy):
         )
         # Set up the environment
         self.env = self.setup_environment(config)
+        if config.reset_policy_memory:
+            self.reset_policy_memory()
         # Initialize tracking variables
         episode_lengths = []
         current_rewards = [0] * config.n_envs
@@ -147,6 +155,8 @@ class SimulationInferenceClient(BaseInferenceClient, BasePolicy):
                     episode_successes.append(current_successes[env_idx])
                     cumulative_sr = float(np.mean(episode_successes))
                     print(f"EP {len(episode_successes)} success: {current_successes[env_idx]}; Cumulative success rate: {cumulative_sr}")
+                    if config.reset_policy_memory:
+                        self.reset_policy_memory(indices=[env_idx])
                     current_successes[env_idx] = False
                     completed_episodes += 1
                     # Reset trackers for this environment
@@ -181,7 +191,12 @@ class SimulationInferenceClient(BaseInferenceClient, BasePolicy):
 def _create_single_env(config: SimulationConfig, idx: int) -> gym.Env:
     """Create a single environment with appropriate wrappers."""
     # Create base environment
-    env = gym.make(config.env_name, split=config.split, enable_render=True)
+    env = gym.make(
+        config.env_name,
+        split=config.split,
+        enable_render=True,
+        disable_env_checker=True,
+    )
     # Add video recording wrapper if needed (only for the first environment)
     if config.video.video_dir is not None:
         video_recorder = VideoRecorder.create_h264(

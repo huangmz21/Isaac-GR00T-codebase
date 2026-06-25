@@ -31,6 +31,8 @@ class RobotInferenceServer(BaseInferenceServer):
         self.register_endpoint(
             "get_modality_config", model.get_modality_config, requires_input=False
         )
+        if hasattr(model, "reset_memory"):
+            self.register_endpoint("reset_memory", model.reset_memory)
 
     @staticmethod
     def start_server(policy: BasePolicy, port: int, api_token: str = None):
@@ -51,3 +53,7 @@ class RobotInferenceClient(BaseInferenceClient, BasePolicy):
 
     def get_modality_config(self) -> Dict[str, ModalityConfig]:
         return self.call_endpoint("get_modality_config", requires_input=False)
+
+    def reset_memory(self, indices: list[int] | None = None) -> Dict[str, Any]:
+        payload = {} if indices is None else {"indices": indices}
+        return self.call_endpoint("reset_memory", payload)
