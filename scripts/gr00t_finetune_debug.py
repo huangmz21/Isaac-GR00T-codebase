@@ -46,9 +46,49 @@ from gr00t.data.dataset import LeRobotMixtureDataset, LeRobotSingleDataset
 from gr00t.data.schema import EmbodimentTag
 from gr00t.experiment.data_config import DATA_CONFIG_MAP
 from gr00t.experiment.runner import TrainRunner
+from gr00t.experiment.identical_data_trainer import IdenticalDataTrainer  # 使用debug trainer
 from gr00t.model.gr00t_n1 import GR00T_N1_5
-from gr00t.model.transforms import EMBODIMENT_TAG_MAPPING
+from gr00t.model.transforms import EMBODIMENT_TAG_MAPPING, DefaultDataCollator
 from gr00t.utils.peft import get_lora_model
+from gr00t.utils.experiment import CheckpointFormatCallback
+
+
+# 自定义TrainRunner，使用IdenticalDataTrainer
+class DebugTrainRunner(TrainRunner):
+    def create_trainer(
+        self,
+        model,
+        training_args,
+        train_dataset,
+        data_collator,
+        compute_dtype,
+        global_batch_size=None,
+    ):
+        if global_batch_size is not None:
+            bs = training_args.per_device_train_batch_size
+            num_gpus = torch.cuda.device_count()
+            grad_acc = max(1, global_batch_size // (bs * num_gpus))
+            training_args.gradient_accumulation_steps = grad_acc
+            print(
+                f"Set global batch size to {global_batch_size}, set gradient accumulation steps to {grad_acc}"
+            )
+
+        # 使用IdenticalDataTrainer替代DualBrainTrainer
+        trainer = IdenticalDataTrainer(
+            model=model,
+            args=training_args,
+            train_dataset=train_dataset,
+            data_collator=data_collator,
+            compute_dtype=compute_dtype,
+        )
+
+        run_name = training_args.run_name
+        ckpt_format_callback = CheckpointFormatCallback(
+            run_name=run_name, exp_cfg_dir=self.exp_cfg_dir
+        )
+        trainer.add_callback(ckpt_format_callback)
+
+        return trainer
 
 # Get repository root directory
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -322,8 +362,8 @@ def main(config: ArgsConfig):
         torch_compile_mode=None,
     )
 
-    # 2.2 run experiment
-    experiment = TrainRunner(
+    # 2.2 run experiment (使用DebugTrainRunner)
+    experiment = DebugTrainRunner(
         train_dataset=train_dataset,
         model=model,
         training_args=training_args,

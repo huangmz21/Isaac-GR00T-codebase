@@ -14,4 +14,5 @@
 # limitations under the License.
 
 from .gr00t_n1 import GR00T_N1_5
+from .gr00t_n1_memory import GR00T_N1_5_Memory
 from .policy import Gr00tPolicy
