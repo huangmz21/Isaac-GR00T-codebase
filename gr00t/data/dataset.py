@@ -26,6 +26,7 @@ See `scripts/load_dataset.py` for examples on how to use these datasets.
 
 import hashlib
 import json
+import time
 from collections import defaultdict
 from pathlib import Path
 from typing import Sequence
@@ -56,6 +57,23 @@ LE_ROBOT_TASKS_FILENAME = "meta/tasks.jsonl"
 LE_ROBOT_INFO_FILENAME = "meta/info.json"
 LE_ROBOT_STATS_FILENAME = "meta/stats.json"
 LE_ROBOT_DATA_FILENAME = "data/*/*.parquet"
+PARQUET_READ_RETRIES = 5
+PARQUET_RETRY_DELAY_SECONDS = 0.1
+
+
+def _is_stale_file_handle_error(error: OSError) -> bool:
+    return getattr(error, "errno", None) == 116 or "Stale file handle" in str(error)
+
+
+def read_parquet_with_retry(parquet_path: Path) -> pd.DataFrame:
+    for attempt in range(PARQUET_READ_RETRIES):
+        try:
+            return pd.read_parquet(parquet_path)
+        except OSError as error:
+            if not _is_stale_file_handle_error(error) or attempt + 1 == PARQUET_READ_RETRIES:
+                raise
+            time.sleep(PARQUET_RETRY_DELAY_SECONDS * (attempt + 1))
+    raise RuntimeError(f"Unable to read parquet after retries: {parquet_path}")
 
 
 def calculate_dataset_statistics(parquet_paths: list[Path]) -> dict:
@@ -68,7 +86,7 @@ def calculate_dataset_statistics(parquet_paths: list[Path]) -> dict:
         desc="Collecting all parquet files...",
     ):
         # Load the parquet file
-        parquet_data = pd.read_parquet(parquet_path)
+        parquet_data = read_parquet_with_retry(parquet_path)
         parquet_data = parquet_data
         all_low_dim_data_list.append(parquet_data)
     all_low_dim_data = pd.concat(all_low_dim_data_list, axis=0)
@@ -605,7 +623,9 @@ class LeRobotSingleDataset(Dataset):
                 episode_chunk=chunk_index, episode_index=trajectory_id
             )
             assert parquet_path.exists(), f"Parquet file not found at {parquet_path}"
-            return pd.read_parquet(parquet_path)
+            self.curr_traj_data = read_parquet_with_retry(parquet_path)
+            self.curr_traj_id = trajectory_id
+            return self.curr_traj_data
 
     def get_trajectory_index(self, trajectory_id: int) -> int:
         """Get the index of the trajectory in the dataset by the trajectory ID.
@@ -1079,23 +1099,24 @@ class LeRobotMixtureDataset(Dataset):
         self.epoch = epoch
         # self.sampled_steps = self.sample_epoch()
 
-    def sample_step(self, index: int) -> tuple[LeRobotSingleDataset, int, int]:
+    def sample_step(self, index: int) -> tuple[LeRobotSingleDataset, int, int, int]:
         """Sample a single step from the dataset."""
         # return self.sampled_steps[index]
+        rng = np.random.default_rng(safe_hash((self.seed, self.epoch, index)))
 
         # Sample dataset
-        dataset_index = np.random.choice(len(self.datasets), p=self.dataset_sampling_weights)
+        dataset_index = rng.choice(len(self.datasets), p=self.dataset_sampling_weights)
         dataset = self.datasets[dataset_index]
 
         # Sample trajectory
-        trajectory_index = np.random.choice(
+        trajectory_index = rng.choice(
             len(dataset.trajectory_ids), p=self.trajectory_sampling_weights[dataset_index]
         )
         trajectory_id = dataset.trajectory_ids[trajectory_index]
 
         # Sample step
-        base_index = np.random.choice(dataset.trajectory_lengths[trajectory_index])
-        return dataset, trajectory_id, base_index
+        base_index = rng.choice(dataset.trajectory_lengths[trajectory_index])
+        return dataset, trajectory_id, base_index, dataset_index
 
     def __getitem__(self, index: int) -> dict:
         """Get the data for a single trajectory and start index.
@@ -1106,8 +1127,16 @@ class LeRobotMixtureDataset(Dataset):
         Returns:
             dict: The data for the trajectory and start index.
         """
-        dataset, trajectory_name, step = self.sample_step(index)
-        return dataset.transforms(dataset.get_step_data(trajectory_name, step))
+        dataset, trajectory_name, step, dataset_index = self.sample_step(index)
+        data = dataset.transforms(dataset.get_step_data(trajectory_name, step))
+
+        # Add task identifiers for per-task loss tracking
+        data['dataset_index'] = dataset_index
+        # Extract task name from dataset path (e.g., .../CloseBlenderLid/20250822/lerobot -> CloseBlenderLid)
+        task_name = str(dataset.dataset_path).split('/')[-3] if '/' in str(dataset.dataset_path) else dataset.dataset_name
+        data['dataset_name'] = task_name
+
+        return data
 
     def __len__(self) -> int:
         """Get the length of a single epoch in the mixture.

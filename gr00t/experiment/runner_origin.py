@@ -21,7 +21,7 @@ import torch
 from transformers import TrainingArguments, set_seed
 
 from gr00t.data.dataset import LeRobotMixtureDataset, LeRobotSingleDataset
-from gr00t.experiment.trainer_with_per_task_loss_v2 import DualBrainTrainerWithPerTaskLoss as DualBrainTrainer
+from gr00t.experiment.trainer import DualBrainTrainer
 from gr00t.model.gr00t_n1 import GR00T_N1_5
 from gr00t.model.transforms import DefaultDataCollator
 from gr00t.utils.experiment import (
@@ -146,12 +146,6 @@ class TrainRunner:
             train_dataset=train_dataset,
             data_collator=data_collator,
             compute_dtype=compute_dtype,
-            # Per-task loss tracking (V2 - Sample-Level Queue)
-            enable_per_task_tracking=True,
-            loss_queue_size=1000,
-            loss_log_interval=10,
-            min_samples_for_stats=50,
-            compute_per_sample_loss=True,
         )
 
         # Add checkpoint format callback to ensure experiment_cfg is copied to each checkpoint

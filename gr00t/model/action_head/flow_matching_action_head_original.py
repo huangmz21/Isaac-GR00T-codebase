@@ -14,7 +14,6 @@
 # limitations under the License.
 
 from dataclasses import dataclass, field
-import os
 
 import torch
 import torch.nn.functional as F
@@ -239,10 +238,6 @@ class FlowmatchingActionHead(nn.Module):
         self.beta_dist = Beta(config.noise_beta_alpha, config.noise_beta_beta)
         self.num_timestep_buckets = config.num_timestep_buckets
         self.config = config
-
-        # FIX: Flag for lazy RNG initialization in first forward()
-        self._rng_initialized = False
-
         self.set_trainable_parameters(config.tune_projector, config.tune_diffusion_model)
 
     def set_trainable_parameters(self, tune_projector: bool, tune_diffusion_model: bool):
@@ -299,19 +294,6 @@ class FlowmatchingActionHead(nn.Module):
         return backbone_output
 
     def forward(self, backbone_output: BatchFeature, action_input: BatchFeature) -> BatchFeature:
-        # FIX: Set per-rank RNG seed on first forward call for DDP
-        # This ensures different timestep/noise sampling across ranks
-        if not self._rng_initialized:
-            if torch.distributed.is_available() and torch.distributed.is_initialized():
-                rank = torch.distributed.get_rank()
-                # DEBUG MODE: Use same seed for all ranks to ensure identical randomness
-                # Original: torch.manual_seed(42 + rank)
-                # For debug/comparison experiments, use same seed:
-                torch.manual_seed(42)  # All ranks use seed=42
-                torch.cuda.manual_seed_all(42)
-                print(f"[FlowMatchingActionHead] Rank {rank}: Set global RNG seed to 42 (debug mode)")
-            self._rng_initialized = True
-
         # Set frozen modules to eval
         self.set_frozen_modules_to_eval_mode()
 
@@ -348,88 +330,12 @@ class FlowmatchingActionHead(nn.Module):
 
         # Embed noised action trajectory.
         actions = action_input.action
-        local_batch_size = actions.shape[0]
-        device = actions.device
-        dtype = actions.dtype
-
-        # ===== FIX: Unified sampling on rank 0 to ensure uniform timestep distribution =====
-        # Problem: Each rank independently sampling small batches leads to non-uniform coverage
-        # Solution: Rank 0 samples all timesteps/noise, then broadcast to other ranks
-        if torch.distributed.is_available() and torch.distributed.is_initialized():
-            world_size = torch.distributed.get_world_size()
-            rank = torch.distributed.get_rank()
-            global_batch_size = world_size * local_batch_size
-
-            # Rank 0: Sample global timesteps and noise
-            if rank == 0:
-                t_global = self.sample_time(global_batch_size, device, dtype)
-                noise_global = torch.randn(
-                    (global_batch_size,) + actions.shape[1:],
-                    device=device,
-                    dtype=dtype
-                )
-            else:
-                # Other ranks: Create placeholder tensors
-                t_global = torch.empty(global_batch_size, device=device, dtype=dtype)
-                noise_global = torch.empty(
-                    (global_batch_size,) + actions.shape[1:],
-                    device=device,
-                    dtype=dtype
-                )
-
-            # Broadcast to all ranks
-            torch.distributed.broadcast(t_global, src=0)
-            torch.distributed.broadcast(noise_global, src=0)
-
-            # Each rank takes its own slice
-            start_idx = rank * local_batch_size
-            end_idx = start_idx + local_batch_size
-            t = t_global[start_idx:end_idx]
-            noise = noise_global[start_idx:end_idx]
-
-            # Debug: Log timestep distribution (first 10 steps only)
-            if not hasattr(self, '_unified_sampling_debug_count'):
-                self._unified_sampling_debug_count = 0
-
-            self._unified_sampling_debug_count += 1
-            if self._unified_sampling_debug_count <= 10 and rank == 0:
-                import numpy as np
-                t_np = t_global.cpu().numpy()
-                hist, _ = np.histogram(t_np, bins=10, range=(0, 1))
-                print(f"[UnifiedSampling] Step {self._unified_sampling_debug_count}:")
-                print(f"  Global batch size: {global_batch_size}")
-                print(f"  Timestep histogram (10 bins): {hist.tolist()}")
-                print(f"  Bins with samples: {(hist > 0).sum()}/10")
-                print(f"  Min/Max: [{t_np.min():.3f}, {t_np.max():.3f}]")
-        else:
-            # Single GPU: Keep original behavior
-            noise = torch.randn(actions.shape, device=device, dtype=dtype)
-            t = self.sample_time(local_batch_size, device, dtype)
-        # ===== END FIX =====
-
+        noise = torch.randn(actions.shape, device=actions.device, dtype=actions.dtype)
+        t = self.sample_time(actions.shape[0], device=actions.device, dtype=actions.dtype)
         t = t[:, None, None]  # shape (B,1,1) for broadcast
+
         noisy_trajectory = (1 - t) * noise + t * actions
         velocity = actions - noise
-
-        # ===== DEBUG: Log timesteps AND noise for DDP verification =====
-        # if not hasattr(self, "_debug_step_counter"):
-        #     self._debug_step_counter = 0
-        #     self._debug_log_dir = "logs"
-        #     os.makedirs(self._debug_log_dir, exist_ok=True)
-        #
-        # if self._debug_step_counter < 100:  # Only log first 100 steps
-        #     rank = int(os.environ.get("RANK", 0))
-        #     log_file = os.path.join(self._debug_log_dir, f"rank_{rank}_timesteps.txt")
-        #     with open(log_file, "a") as f:
-        #         # Log step, first 5 timesteps, and first 3 noise values
-        #         t_cpu = t.cpu().numpy()
-        #         noise_sample = noise[0, 0, :3].cpu().numpy()  # first sample, first timestep, first 3 dims
-        #         f.write(
-        #             f"step={self._debug_step_counter} t[:5]={t_cpu[:5].flatten().tolist()} "
-        #             f"noise[0,0,:3]={noise_sample.tolist()}\n"
-        #         )
-        # self._debug_step_counter += 1
-        # ===== END DEBUG =====
 
         # Convert (continuous) t -> discrete if needed
         t_discretized = (t[:, 0, 0] * self.num_timestep_buckets).long()
@@ -460,19 +366,8 @@ class FlowmatchingActionHead(nn.Module):
         # Slice out only the action portion of pred and target.
         action_mask = action_input.action_mask
         loss = masked_mse_loss_with_global_normalizer(pred_actions, velocity, action_mask)
-
-        # Compute per-sample loss for per-task tracking
-        with torch.no_grad():
-            per_element_loss = F.mse_loss(pred_actions, velocity, reduction="none") * action_mask
-            # per_element_loss shape: (batch_size, action_horizon, action_dim)
-
-            # Average over time and action dimensions for each sample
-            per_sample_loss = per_element_loss.sum(dim=[1, 2]) / action_mask.sum(dim=[1, 2]).clamp_min(1.0)
-            # per_sample_loss shape: (batch_size,)
-
         output_dict = {
             "loss": loss,
-            "per_sample_loss": per_sample_loss,
         }
         return BatchFeature(data=output_dict)
 

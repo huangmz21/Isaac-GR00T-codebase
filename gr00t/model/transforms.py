@@ -76,6 +76,12 @@ def collate(features: List[dict], eagle_processor) -> dict:
         elif key in ("pixel_values", "image_grid_thw", "attention_mask", "input_ids"):
             # Concat in existing batch dimension.
             batch[key] = torch.cat(values)
+        elif key == "dataset_index":
+            # Convert to tensor for per-task tracking
+            batch[key] = torch.tensor(values, dtype=torch.long)
+        elif key == "dataset_name":
+            # Keep as list of strings for per-task tracking
+            batch[key] = values
         else:
             # state, state_mask, action and action_mask.
             # Stack to form the batch dimension.
@@ -325,6 +331,11 @@ class GR00TTransform(InvertibleModalityTransform):
         for k, v in vlm_outputs.items():
             assert k not in transformed_data, f"Key {k} already exists in transformed_data."
             transformed_data[k] = v
+
+        # Optional action-effect memory fields for GR00T_N1_5_Memory.
+        for key in ("mem_actions", "mem_valid_mask", "mem_pre_feat", "mem_post_feat"):
+            if key in data:
+                transformed_data[key] = np.asarray(data[key])
 
         transformed_data["embodiment_id"] = self.get_embodiment_tag()
 
