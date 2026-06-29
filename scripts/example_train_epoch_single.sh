@@ -8,6 +8,9 @@ set -e
 # Activate environment
 source .venv/bin/activate
 
+# Set Python path
+export PYTHONPATH=/mnt/ssd_data/mingzhe/Code/robocasa365/Isaac-GR00T:$PYTHONPATH
+
 # Set HuggingFace cache directories (fix permission issues)
 export HF_HOME=/home/huangmingzhe/.cache/huggingface
 export TRANSFORMERS_CACHE=/home/huangmingzhe/.cache/huggingface/transformers

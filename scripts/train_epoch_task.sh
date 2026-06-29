@@ -29,6 +29,7 @@ BASE_MODEL_PATH="/data1/mingzhe/models/gr00t_n1-5/foundation_model_learning/pret
 
 # ---- Environment ----
 source .venv/bin/activate
+export PYTHONPATH=/mnt/ssd_data/mingzhe/Code/robocasa365/Isaac-GR00T:$PYTHONPATH
 export HF_HOME=/home/huangmingzhe/.cache/huggingface
 export TRANSFORMERS_CACHE=/home/huangmingzhe/.cache/huggingface/transformers
 export CUDA_VISIBLE_DEVICES="${GPU_IDS}"
