@@ -24,7 +24,7 @@ echo "========================================"
 echo "Checking if flash_attn is installed..."
 echo "========================================"
 
-cd /data1/mingzhe/Isaac-GR00T-codebase
+cd /mnt/ssd_data/mingzhe/Code/robocasa365/Isaac-GR00T
 
 if /home/huangmingzhe/.local/bin/uv pip list | grep -i flash > /dev/null 2>&1; then
     echo "✓ flash-attn is installed!"

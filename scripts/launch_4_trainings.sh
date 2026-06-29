@@ -19,10 +19,10 @@ NUM_EPOCHS=10
 
 # soup_name : comma-separated GPU ids
 SOUPS=(
-    "opencabinet_only:0,1"
-    "opendrawer_only:2,3"
-    "turnonelectrickettle_only:4,5"
-    "turnonsinkfaucet_only:6,7"
+    "closeblenderlid_only:0,1"
+    "closefridge_only:2,3"
+    # "turnonelectrickettle_only:4,5"
+    # "turnonsinkfaucet_only:6,7"
 )
 
 echo "=========================================="

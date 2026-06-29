@@ -3,7 +3,7 @@
 # Main launcher for all atomic_seen training experiments
 # Launches three training jobs on different GPU sets
 
-cd /data1/mingzhe/Isaac-GR00T-codebase
+cd /mnt/ssd_data/mingzhe/Code/robocasa365/Isaac-GR00T
 
 # Colors for output
 RED='\033[0;31m'

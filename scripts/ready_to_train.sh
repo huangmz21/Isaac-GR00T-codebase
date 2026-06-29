@@ -68,7 +68,7 @@ cat << 'EOF'
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 准备好开始了吗？运行:
-  cd /data1/mingzhe/Isaac-GR00T-codebase
+  cd /mnt/ssd_data/mingzhe/Code/robocasa365/Isaac-GR00T
   bash scripts/train_4gpu_opencabinet_opendrawer.sh
 
 EOF

@@ -3,14 +3,14 @@
 # Training script for RoboCasa atomic_seen dataset
 # 8-GPU training with GR00T-N1.5 model
 
-cd /data1/mingzhe/Isaac-GR00T-codebase
+cd /mnt/ssd_data/mingzhe/Code/robocasa365/Isaac-GR00T
 
 # Activate virtual environment
 source .venv/bin/activate
 
 # Set environment variables
 export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
-export PYTHONPATH=/data1/mingzhe/Isaac-GR00T-codebase:$PYTHONPATH
+export PYTHONPATH=/mnt/ssd_data/mingzhe/Code/robocasa365/Isaac-GR00T:$PYTHONPATH
 export HF_HOME=/home/huangmingzhe/.cache/huggingface
 export TRANSFORMERS_CACHE=/home/huangmingzhe/.cache/huggingface/transformers
 
@@ -35,7 +35,7 @@ VIDEO_BACKEND="opencv"
 DS_WEIGHTS_ALPHA=0.4
 
 # Run training (use absolute path to venv python)
-/data1/mingzhe/Isaac-GR00T-codebase/.venv/bin/python scripts/gr00t_finetune.py \
+/mnt/ssd_data/mingzhe/Code/robocasa365/Isaac-GR00T/.venv/bin/python scripts/gr00t_finetune.py \
     --dataset-soup ${DATASET_SOUP} \
     --output-dir ${OUTPUT_DIR} \
     --data-config ${DATA_CONFIG} \

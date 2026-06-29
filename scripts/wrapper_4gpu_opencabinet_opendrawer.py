@@ -7,11 +7,11 @@ import sys
 import os
 
 # Make sure we're in the correct directory
-os.chdir('/data1/mingzhe/Isaac-GR00T-codebase')
-sys.path.insert(0, '/data1/mingzhe/Isaac-GR00T-codebase')
+os.chdir('/mnt/ssd_data/mingzhe/Code/robocasa365/Isaac-GR00T')
+sys.path.insert(0, '/mnt/ssd_data/mingzhe/Code/robocasa365/Isaac-GR00T')
 
 # Add venv bin to PATH so torchrun can be found
-venv_bin = '/data1/mingzhe/Isaac-GR00T-codebase/.venv/bin'
+venv_bin = '/mnt/ssd_data/mingzhe/Code/robocasa365/Isaac-GR00T/.venv/bin'
 os.environ['PATH'] = venv_bin + ':' + os.environ.get('PATH', '')
 
 # Register custom datasets before importing training script

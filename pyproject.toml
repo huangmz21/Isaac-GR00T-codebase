@@ -100,6 +100,7 @@ deploy = [
 ]
 
 [tool.setuptools.packages.find]
+include = ["gr00t*", "robocasa*"]
 exclude = [
     "*.tests",
     "*.tests.*",

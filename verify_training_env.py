@@ -87,12 +87,12 @@ def check_environment():
 
     # 6. 检查训练脚本
     print("\n[6/6] 检查训练脚本...")
-    train_script = "/data1/mingzhe/Isaac-GR00T-codebase/scripts/train_robocasa_atomic_seen.sh"
+    train_script = "/mnt/ssd_data/mingzhe/Code/robocasa365/Isaac-GR00T/scripts/train_robocasa_atomic_seen.sh"
     if os.path.exists(train_script):
         print(f"  ✅ 训练脚本存在")
         with open(train_script, 'r') as f:
             content = f.read()
-            if "/data1/mingzhe/Isaac-GR00T-codebase" in content:
+            if "/mnt/ssd_data/mingzhe/Code/robocasa365/Isaac-GR00T" in content:
                 print(f"  ✅ 训练脚本路径配置正确")
             else:
                 print(f"  ⚠️  警告: 训练脚本路径可能不正确")
@@ -105,7 +105,7 @@ def check_environment():
     if all_checks_passed:
         print("✅ 所有检查通过! 环境已就绪,可以开始训练")
         print("\n启动训练命令:")
-        print("  cd /data1/mingzhe/Isaac-GR00T-codebase")
+        print("  cd /mnt/ssd_data/mingzhe/Code/robocasa365/Isaac-GR00T")
         print("  bash scripts/train_robocasa_atomic_seen.sh")
     else:
         print("❌ 部分检查失败,请修复上述问题后再启动训练")

@@ -2,14 +2,14 @@
 
 # 2-GPU Training Script for OpenDrawer Only
 
-cd /data1/mingzhe/Isaac-GR00T-codebase
+cd /mnt/ssd_data/mingzhe/Code/robocasa365/Isaac-GR00T
 
 # Activate virtual environment
 source .venv/bin/activate
 
 # Set environment variables
 export CUDA_VISIBLE_DEVICES=4,5
-export PYTHONPATH=/data1/mingzhe/Isaac-GR00T-codebase:$PYTHONPATH
+export PYTHONPATH=/mnt/ssd_data/mingzhe/Code/robocasa365/Isaac-GR00T:$PYTHONPATH
 export HF_HOME=/home/huangmingzhe/.cache/huggingface
 export TRANSFORMERS_CACHE=/home/huangmingzhe/.cache/huggingface/transformers
 

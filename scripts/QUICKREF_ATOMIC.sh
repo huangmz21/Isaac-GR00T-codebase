@@ -7,20 +7,20 @@ cat << 'EOF'
 ║                Atomic Seen Training - Quick Reference                  ║
 ╚════════════════════════════════════════════════════════════════════════╝
 
-📁 Location: /data1/mingzhe/Isaac-GR00T-codebase/scripts/
+📁 Location: /mnt/ssd_data/mingzhe/Code/robocasa365/Isaac-GR00T/scripts/
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 🚀 QUICK START
 
   方式1: 运行单个训练
-    cd /data1/mingzhe/Isaac-GR00T-codebase
+    cd /mnt/ssd_data/mingzhe/Code/robocasa365/Isaac-GR00T
     bash scripts/train_4gpu_opencabinet_opendrawer.sh
     bash scripts/train_2gpu_opendrawer.sh
     bash scripts/train_2gpu_opencabinet.sh
 
   方式2: 一键启动全部（推荐）
-    cd /data1/mingzhe/Isaac-GR00T-codebase
+    cd /mnt/ssd_data/mingzhe/Code/robocasa365/Isaac-GR00T
     bash scripts/launch_all_trainings.sh
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
