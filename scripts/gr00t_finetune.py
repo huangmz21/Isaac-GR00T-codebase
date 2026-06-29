@@ -15,7 +15,9 @@
 
 
 import os
-os.environ["TRANSFORMERS_VIDEO_BACKEND"] = "av"
+os.environ.setdefault("TRANSFORMERS_VIDEO_BACKEND", "av")
+os.environ.setdefault("MUJOCO_GL", "glx")
+os.environ.setdefault("PYOPENGL_PLATFORM", "glx")
 
 import warnings
 warnings.filterwarnings(
@@ -48,6 +50,16 @@ from gr00t.model.gr00t_n1 import GR00T_N1_5
 from gr00t.model.transforms import EMBODIMENT_TAG_MAPPING
 from gr00t.utils.peft import get_lora_model
 
+# Get repository root directory
+REPO_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_BASE_MODEL_PATH = os.getenv(
+    "GR00T_BASE_MODEL_PATH",
+    str(REPO_ROOT / "pretrained_models/GR00T-N1.5-3B")
+)
+DEFAULT_OUTPUT_DIR = os.getenv(
+    "GR00T_OUTPUT_DIR",
+    str(REPO_ROOT / "outputs/gr00t_finetune")
+)
 
 
 @dataclass
@@ -55,30 +67,30 @@ class ArgsConfig:
     """Configuration for GR00T model fine-tuning."""
 
     # Dataset parameters
-    dataset_soup: str = None
-    """Path to the dataset directory or directories"""
+    dataset_soup: str
+    """Dataset soup name from DATASET_SOUP_REGISTRY (required)"""
 
-    output_dir: str = "/tmp/gr00t"
+    output_dir: str = DEFAULT_OUTPUT_DIR
     """Directory to save model checkpoints."""
 
     data_config: Literal[tuple(DATA_CONFIG_MAP.keys())] = "panda_omron"
     """Data configuration name from DATA_CONFIG_MAP, we assume all datasets have the same data config"""
 
     # Training parameters
-    batch_size: int = 128
+    batch_size: int = 16
     """Batch size per GPU for training."""
 
     max_steps: int = 300000
     """Maximum number of training steps."""
 
-    num_gpus: int = 1
+    num_gpus: int = 8
     """Number of GPUs to use for training."""
 
     save_steps: int = 20000
     """Number of steps between saving checkpoints."""
 
     # Model parameters
-    base_model_path: str = "nvidia/GR00T-N1.5-3B"
+    base_model_path: str = DEFAULT_BASE_MODEL_PATH
     """Path or HuggingFace model ID for the base model."""
 
     tune_llm: bool = False

@@ -70,6 +70,7 @@ class Gr00tPolicy(BasePolicy):
         modality_transform: ComposedModalityTransform,
         denoising_steps: Optional[int] = None,
         device: Union[int, str] = "cuda" if torch.cuda.is_available() else "cpu",
+        transform_training_mode: bool = False,  # New parameter
     ):
         """
         Initialize the Gr00tPolicy.
@@ -81,6 +82,8 @@ class Gr00tPolicy(BasePolicy):
             embodiment_tag (Union[str, EmbodimentTag]): The embodiment tag for the model.
             denoising_steps: Number of denoising steps to use for the action head.
             device (Union[int, str]): Device to run the model on.
+            transform_training_mode (bool): If True, keep transform in training mode (for router training).
+                                           If False (default), set transform to eval mode (for normal inference).
         """
         try:
             # NOTE(YL) this returns the local path to the model which is normally
@@ -94,7 +97,15 @@ class Gr00tPolicy(BasePolicy):
 
         self._modality_config = modality_config
         self._modality_transform = modality_transform
-        self._modality_transform.eval()  # set this to eval mode
+
+        # Set transform mode based on use case
+        if transform_training_mode:
+            # Keep in training mode (for router training that needs action ground truth)
+            self._modality_transform.training = True
+        else:
+            # Set to eval mode (default for normal inference)
+            self._modality_transform.eval()
+
         self.model_path = Path(model_path)
         self.device = device
 
